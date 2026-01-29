@@ -1,0 +1,227 @@
+name: Daily Financial News Scraping
+
+on:
+  schedule:
+    # Run every day at 2:00 AM UTC (8:00 PM CST the previous day)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run scraping regardless of time'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  scrape-news:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create exports directory
+      run: mkdir -p exports
+      
+    - name: Run financial news scraper
+      env:
+        DATABASE_URL: sqlite:///financial_news.db
+        LOG_LEVEL: INFO
+      run: |
+        python scraper.py
+        
+    - name: Export yesterday's news in all formats
+      env:
+        DATABASE_URL: sqlite:///financial_news.db
+      run: |
+        cat > export_script.py << 'EOF'
+from data_export import export_daily_news
+import os
+
+# Export in all formats
+formats = ['json', 'csv', 'xml', 'parquet']
+for fmt in formats:
+    try:
+        filename = export_daily_news(fmt, 'exports')
+        print(f'Exported {fmt}: {filename}')
+    except Exception as e:
+        print(f'Error exporting {fmt}: {e}')
+EOF
+        python export_script.py
+        
+    - name: Generate daily summary
+      env:
+        DATABASE_URL: sqlite:///financial_news.db
+      run: |
+        cat > summary_script.py << 'EOF'
+from datetime import datetime, timedelta
+from database import SessionLocal
+from models import FinancialNews
+import json
+
+db = SessionLocal()
+try:
+    # Get yesterday's articles
+    yesterday = datetime.now().date() - timedelta(days=1)
+    start_date = datetime.combine(yesterday, datetime.min.time())
+    end_date = datetime.combine(yesterday, datetime.max.time())
+    
+    articles = db.query(FinancialNews).filter(
+        FinancialNews.published_date >= start_date,
+        FinancialNews.published_date <= end_date
+    ).all()
+    
+    # Generate summary
+    summary = {
+        'date': yesterday.isoformat(),
+        'total_articles': len(articles),
+        'sources': {},
+        'top_stocks': {},
+        'sample_titles': []
+    }
+    
+    # Count by source
+    for article in articles:
+        source = article.source
+        if source not in summary['sources']:
+            summary['sources'][source] = 0
+        summary['sources'][source] += 1
+        
+        # Extract mentioned stocks
+        if article.mentioned_stocks:
+            stocks = json.loads(article.mentioned_stocks)
+            for stock in stocks:
+                if stock not in summary['top_stocks']:
+                    summary['top_stocks'][stock] = 0
+                summary['top_stocks'][stock] += 1
+        
+        # Sample titles
+        if len(summary['sample_titles']) < 5:
+            summary['sample_titles'].append(article.title)
+    
+    # Sort top stocks
+    summary['top_stocks'] = dict(sorted(summary['top_stocks'].items(), key=lambda x: x[1], reverse=True)[:10])
+    
+    # Save summary
+    with open('exports/daily_summary.json', 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    print(f'Daily summary generated: {summary["total_articles"]} articles from {len(summary["sources"])} sources')
+    
+finally:
+    db.close()
+EOF
+        python summary_script.py
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Add new files
+        git add financial_news.db exports/ || true
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Daily financial news update - $(date +'%Y-%m-%d')"
+          git push
+        fi
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: financial-news-data-${{ github.run_number }}
+        path: |
+          exports/
+          financial_news.db
+        retention-days: 30
+        
+    - name: Create release (optional)
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: daily-${{ github.run_number }}
+        release_name: Daily Financial News - ${{ github.run_number }}
+        body: |
+          Daily financial news scraping results.
+          
+          **Summary:**
+          - Run date: ${{ github.run_started_at }}
+          - Workflow: ${{ github.workflow }}
+          - Run number: ${{ github.run_number }}
+          
+          **Files included:**
+          - Database with all articles
+          - Export files in JSON, CSV, XML, and Parquet formats
+          - Daily summary statistics
+        draft: false
+        prerelease: true
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: scrape-news
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Clean up old data
+      env:
+        DATABASE_URL: sqlite:///financial_news.db
+        DATA_RETENTION_DAYS: 90
+      run: |
+        cat > cleanup_script.py << 'EOF'
+from database import cleanup_old_data
+try:
+    cleanup_old_data()
+    print('Old data cleanup completed')
+except Exception as e:
+    print(f'Cleanup error: {e}')
+EOF
+        python cleanup_script.py
+        
+    - name: Commit cleanup changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add financial_news.db || true
+        if git diff --staged --quiet; then
+          echo "No cleanup changes to commit"
+        else
+          git commit -m "Data cleanup - $(date +'%Y-%m-%d')"
+          git push
+        fi
