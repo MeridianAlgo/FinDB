@@ -11,10 +11,12 @@ import re
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from config import Config
 from database import get_db, SessionLocal
 from models import FinancialNews, ScrapingLog
+import trafilatura
+from textblob import TextBlob
 
 # Configure logging
 logging.basicConfig(level=getattr(logging, Config.LOG_LEVEL))
@@ -29,6 +31,7 @@ class NewsArticle:
     author: Optional[str] = None
     published_date: Optional[datetime] = None
     summary: Optional[str] = None
+    tags: List[str] = field(default_factory=list)
 
 class NewsScraper:
     def __init__(self):
@@ -70,6 +73,12 @@ class NewsScraper:
             async with self.session.get(url, timeout=30) as response:
                 if response.status == 200:
                     html = await response.text()
+                    
+                    # Try trafilatura first for high quality extraction
+                    traf_content = trafilatura.extract(html, include_comments=False, include_tables=False)
+                    if traf_content and len(traf_content) > 100:
+                        return traf_content
+
                     soup = BeautifulSoup(html, 'html.parser')
                     
                     # Extract content based on source-specific selectors
@@ -239,13 +248,19 @@ class NewsScraper:
                     if not content:
                         content = summary  # Fallback to summary
                     
+                    # Extract tags
+                    tags = []
+                    if hasattr(entry, 'tags'):
+                        tags = [tag.get('term') for tag in entry.tags if tag.get('term')]
+
                     # Create article object
                     article = NewsArticle(
                         title=title,
                         content=content,
                         url=url,
                         source=source_name,
-                        summary=summary
+                        summary=summary,
+                        tags=tags
                     )
                     
                     # Extract additional metadata
@@ -342,6 +357,11 @@ class NewsProcessor:
                 # Extract financial entities
                 entities = NewsScraper().extract_financial_entities(article.content + ' ' + article.title)
                 
+                # Calculate sentiment
+                blob = TextBlob(article.content)
+                sentiment_score = blob.sentiment.polarity
+                sentiment_label = 'positive' if sentiment_score > 0.1 else 'negative' if sentiment_score < -0.1 else 'neutral'
+                
                 # Create database record
                 db_article = FinancialNews(
                     title=article.title,
@@ -355,7 +375,10 @@ class NewsProcessor:
                     mentioned_companies=json.dumps(entities['companies']),
                     mentioned_persons=json.dumps(entities['persons']),
                     word_count=len(article.content.split()),
-                    read_time_minutes=max(1, len(article.content.split()) // 200)
+                    read_time_minutes=max(1, len(article.content.split()) // 200),
+                    sentiment_score=sentiment_score,
+                    sentiment_label=sentiment_label,
+                    tags=json.dumps(article.tags)
                 )
                 
                 db.add(db_article)

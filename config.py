@@ -55,6 +55,22 @@ class Config:
             "title_selector": "h1",
             "content_selector": "div.group p",
             "date_selector": "time"
+        },
+        "bbc_business": {
+            "rss_url": "http://feeds.bbci.co.uk/news/business/rss.xml",
+            "base_url": "https://www.bbc.com",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div[data-component='text-block']",
+            "date_selector": "time"
+        },
+        "guardian_business": {
+            "rss_url": "https://www.theguardian.com/uk/business/rss",
+            "base_url": "https://www.theguardian.com",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div.article-body-commercial-selector p",
+            "date_selector": "time"
         }
     }
     
