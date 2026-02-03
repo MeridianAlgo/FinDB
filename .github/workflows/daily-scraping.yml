@@ -9,7 +9,7 @@ on:
       force_run:
         description: 'Force run scraping regardless of time'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
@@ -53,84 +53,73 @@ jobs:
       env:
         DATABASE_URL: sqlite:///financial_news.db
       run: |
-        cat > export_script.py << 'EOF'
-from data_export import export_daily_news
-import os
-
-# Export in all formats
-formats = ['json', 'csv', 'xml', 'parquet']
-for fmt in formats:
-    try:
-        filename = export_daily_news(fmt, 'exports')
-        print(f'Exported {fmt}: {filename}')
-    except Exception as e:
-        print(f'Error exporting {fmt}: {e}')
-EOF
-        python export_script.py
+        python -c "
+        from data_export import export_daily_news
+        import os
+        
+        formats = ['json', 'csv', 'xml', 'parquet']
+        for fmt in formats:
+            try:
+                filename = export_daily_news(fmt, 'exports')
+                print(f'Exported {fmt}: {filename}')
+            except Exception as e:
+                print(f'Error exporting {fmt}: {e}')
+        "
         
     - name: Generate daily summary
       env:
         DATABASE_URL: sqlite:///financial_news.db
       run: |
-        cat > summary_script.py << 'EOF'
-from datetime import datetime, timedelta
-from database import SessionLocal
-from models import FinancialNews
-import json
-
-db = SessionLocal()
-try:
-    # Get yesterday's articles
-    yesterday = datetime.now().date() - timedelta(days=1)
-    start_date = datetime.combine(yesterday, datetime.min.time())
-    end_date = datetime.combine(yesterday, datetime.max.time())
-    
-    articles = db.query(FinancialNews).filter(
-        FinancialNews.published_date >= start_date,
-        FinancialNews.published_date <= end_date
-    ).all()
-    
-    # Generate summary
-    summary = {
-        'date': yesterday.isoformat(),
-        'total_articles': len(articles),
-        'sources': {},
-        'top_stocks': {},
-        'sample_titles': []
-    }
-    
-    # Count by source
-    for article in articles:
-        source = article.source
-        if source not in summary['sources']:
-            summary['sources'][source] = 0
-        summary['sources'][source] += 1
+        python -c "
+        from datetime import datetime, timedelta
+        from database import SessionLocal
+        from models import FinancialNews
+        import json
         
-        # Extract mentioned stocks
-        if article.mentioned_stocks:
-            stocks = json.loads(article.mentioned_stocks)
-            for stock in stocks:
-                if stock not in summary['top_stocks']:
-                    summary['top_stocks'][stock] = 0
-                summary['top_stocks'][stock] += 1
-        
-        # Sample titles
-        if len(summary['sample_titles']) < 5:
-            summary['sample_titles'].append(article.title)
-    
-    # Sort top stocks
-    summary['top_stocks'] = dict(sorted(summary['top_stocks'].items(), key=lambda x: x[1], reverse=True)[:10])
-    
-    # Save summary
-    with open('exports/daily_summary.json', 'w') as f:
-        json.dump(summary, f, indent=2)
-    
-    print(f'Daily summary generated: {summary["total_articles"]} articles from {len(summary["sources"])} sources')
-    
-finally:
-    db.close()
-EOF
-        python summary_script.py
+        db = SessionLocal()
+        try:
+            yesterday = datetime.now().date() - timedelta(days=1)
+            start_date = datetime.combine(yesterday, datetime.min.time())
+            end_date = datetime.combine(yesterday, datetime.max.time())
+            
+            articles = db.query(FinancialNews).filter(
+                FinancialNews.published_date >= start_date,
+                FinancialNews.published_date <= end_date
+            ).all()
+            
+            summary = {
+                'date': yesterday.isoformat(),
+                'total_articles': len(articles),
+                'sources': {},
+                'top_stocks': {},
+                'sample_titles': []
+            }
+            
+            for article in articles:
+                source = article.source
+                if source not in summary['sources']:
+                    summary['sources'][source] = 0
+                summary['sources'][source] += 1
+                
+                if article.mentioned_stocks:
+                    stocks = json.loads(article.mentioned_stocks)
+                    for stock in stocks:
+                        if stock not in summary['top_stocks']:
+                            summary['top_stocks'][stock] = 0
+                        summary['top_stocks'][stock] += 1
+                
+                if len(summary['sample_titles']) < 5:
+                    summary['sample_titles'].append(article.title)
+            
+            summary['top_stocks'] = dict(sorted(summary['top_stocks'].items(), key=lambda x: x[1], reverse=True)[:10])
+            
+            with open('exports/daily_summary.json', 'w') as f:
+                json.dump(summary, f, indent=2)
+            
+            print(f\"Daily summary: {summary['total_articles']} articles from {len(summary['sources'])} sources\")
+        finally:
+            db.close()
+        "
         
     - name: Commit and push changes
       run: |
@@ -170,7 +159,6 @@ EOF
           Daily financial news scraping results.
           
           **Summary:**
-          - Run date: ${{ github.run_started_at }}
           - Workflow: ${{ github.workflow }}
           - Run number: ${{ github.run_number }}
           
@@ -205,15 +193,14 @@ EOF
         DATABASE_URL: sqlite:///financial_news.db
         DATA_RETENTION_DAYS: 90
       run: |
-        cat > cleanup_script.py << 'EOF'
-from database import cleanup_old_data
-try:
-    cleanup_old_data()
-    print('Old data cleanup completed')
-except Exception as e:
-    print(f'Cleanup error: {e}')
-EOF
-        python cleanup_script.py
+        python -c "
+        from database import cleanup_old_data
+        try:
+            cleanup_old_data()
+            print('Old data cleanup completed')
+        except Exception as e:
+            print(f'Cleanup error: {e}')
+        "
         
     - name: Commit cleanup changes
       run: |
