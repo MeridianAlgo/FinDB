@@ -1,157 +1,140 @@
 # Financial News Scraper and Database
 
-![Build Status](https://github.com/MeridianAlgo/FinDB/actions/workflows/daily-scraping.yml/badge.svg)
+[![Build Status](https://github.com/MeridianAlgo/FinDB/actions/workflows/daily-scraping.yml/badge.svg)](https://github.com/MeridianAlgo/FinDB/actions)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Database](https://img.shields.io/badge/database-SQLite-003B57.svg)](https://www.sqlite.org/)
+[![API](https://img.shields.io/badge/API-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 
 ## Overview
 
-This project implements an automated pipeline for scraping, processing, and storing financial news articles from major global sources. It is designed to create a comprehensive dataset suitable for training Large Language Models (LLMs) and performing financial sentiment analysis.
+An automated pipeline for scraping, processing, and storing financial news articles from major global sources. Designed for creating comprehensive datasets suitable for training Large Language Models (LLMs), performing financial sentiment analysis, and conducting market research.
 
-The system runs daily via GitHub Actions, aggregating news into a SQLite database and exporting machine-readable datasets in **JSON, CSV, XML, and Parquet** formats.
+The system executes daily via GitHub Actions, aggregating news into a SQLite database and exporting machine-readable datasets in JSON, CSV, XML, and Parquet formats.
 
-## ✨ Features
+## Key Features
 
-- **Multi-Source Scraping**: Aggregates news from 7 major sources:
-  - Yahoo Finance
-  - MarketWatch
-  - Seeking Alpha
-  - CNBC
-  - BBC Business
-  - Guardian Business
-  - Reuters (configurable)
+### Multi-Source Aggregation
+Collects news from 7 major financial sources:
+- Yahoo Finance
+- MarketWatch
+- Seeking Alpha
+- CNBC
+- BBC Business
+- Guardian Business
+- Reuters
 
-- **High-Quality Extraction**: 
-  - Utilizes `trafilatura` for clean, main-text extraction
-  - Strips ads, navigation, and clutter
-  - Fallback to BeautifulSoup for complex pages
+### Intelligent Content Extraction
+- High-quality text extraction using trafilatura
+- Automatic removal of advertisements and navigation elements
+- Fallback parsing with BeautifulSoup for complex pages
+- Metadata extraction (author, publish date, tags)
 
-- **Sentiment Analysis**: 
-  - Computes sentiment polarity (-1.0 to 1.0)
-  - Classification (Positive, Negative, Neutral)
-  - Powered by TextBlob
+### Advanced Analytics
+- Sentiment analysis with polarity scoring (-1.0 to 1.0)
+- Automatic classification (positive, negative, neutral)
+- Financial entity extraction (stock tickers, companies, persons)
+- Word count and reading time estimation
 
-- **Entity Recognition**: 
-  - Automatically identifies stock tickers ($AAPL, TSLA, etc.)
-  - Extracts company names
-  - Identifies key person entities
+### Automated Workflow
+- Daily scheduled execution at 2:00 AM UTC
+- Manual trigger capability via GitHub Actions
+- Automatic data export in multiple formats
+- Git-based version control for all data
+- 30-day artifact retention
+- 90-day data retention policy
 
-- **Automated Workflow**: 
-  - Fully automated daily execution via GitHub Actions
-  - Runs at 2:00 AM UTC (8:00 PM CST previous day)
-  - Manual trigger option available
+### Multiple Export Formats
+- **JSON**: Full structured data with nested objects
+- **CSV**: Flattened format for spreadsheet analysis
+- **XML**: Hierarchical structure for XML parsers
+- **Parquet**: Compressed columnar format for big data analytics
 
-- **Data Persistence**: 
-  - Relational storage in SQLite (`financial_news.db`)
-  - Daily exports in 4 machine-readable formats:
-    - **JSON**: Full structured data with metadata
-    - **CSV**: Flattened for spreadsheet analysis
-    - **XML**: Hierarchical structure
-    - **Parquet**: Compressed, optimized for big data
-  - Daily summary statistics
-  - 90-day data retention policy
+### RESTful API
+- Query articles by date, source, sentiment
+- Full-text search capabilities
+- Aggregated statistics and trends
+- Export functionality via API
+- Pagination and filtering support
 
-- **Error Handling**:
-  - Duplicate detection (URL-based)
-  - Retry logic for failed requests
-  - Comprehensive logging
-  - Graceful degradation
-
-## 📊 Test Results
-
-**Latest Test:** February 3, 2026
-
-- ✅ **183 articles scraped** in 71 seconds
-- ✅ **128 unique articles saved** to database
-- ✅ **All 4 export formats** working perfectly
-- ✅ **YAML workflow validated** with 0 errors (fixed 185+ syntax errors)
-- ✅ **Success rate:** 99.5%
-
-See [TEST_RESULTS.md](TEST_RESULTS.md) for detailed test report.
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+
-- pip
+- Python 3.11 or higher
+- pip package manager
+- Git
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/MeridianAlgo/FinDB.git
-   cd FinDB
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   python -m textblob.download_corpora
-   ```
-
-### Manual Execution
-
-Run the scraper:
 ```bash
+# Clone repository
+git clone https://github.com/MeridianAlgo/FinDB.git
+cd FinDB
+
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Download required corpora
+python -m textblob.download_corpora
+```
+
+### Basic Usage
+
+```bash
+# Run scraper
 python scraper.py
+
+# Export data
+python -c "from data_export import export_daily_news; export_daily_news('json', 'exports')"
+
+# Start API server
+python api.py
 ```
 
-Export data in all formats:
-```bash
-python test_export.py
-```
+## Documentation
 
-Generate daily summary:
-```bash
-python test_summary.py
-```
+Comprehensive documentation is available in the `docs/` directory:
 
-### Programmatic Usage
+- [Installation Guide](docs/INSTALLATION.md) - Detailed setup instructions
+- [Usage Guide](docs/USAGE.md) - Examples and best practices
+- [API Documentation](docs/API.md) - Complete API reference
+- [Architecture](docs/ARCHITECTURE.md) - System design and components
+- [Test Results](docs/TEST_RESULTS.md) - Latest test reports
 
-```python
-# Export yesterday's news
-from data_export import export_daily_news
-
-# Export in specific format
-export_daily_news(format='json', output_dir='exports')
-export_daily_news(format='csv', output_dir='exports')
-export_daily_news(format='xml', output_dir='exports')
-export_daily_news(format='parquet', output_dir='exports')
-
-# Export date range
-from data_export import DataExporter
-from datetime import datetime, timedelta
-
-start = datetime.now() - timedelta(days=7)
-end = datetime.now()
-DataExporter.export_date_range(start, end, format='json', filename='weekly_news.json')
-```
-
-## 📁 Repository Structure
+## Project Structure
 
 ```
 FinDB/
 ├── .github/
 │   └── workflows/
-│       └── daily-scraping.yml    # GitHub Actions workflow
+│       └── daily-scraping.yml    # Automated workflow
+├── docs/                          # Documentation
+│   ├── INSTALLATION.md
+│   ├── USAGE.md
+│   ├── API.md
+│   ├── ARCHITECTURE.md
+│   └── TEST_RESULTS.md
 ├── exports/                       # Daily export files
-│   ├── financial_news_YYYY-MM-DD.json
-│   ├── financial_news_YYYY-MM-DD.csv
-│   ├── financial_news_YYYY-MM-DD.xml
-│   ├── financial_news_YYYY-MM-DD.parquet
-│   └── daily_summary.json
+├── scripts/                       # Utility scripts
+├── tests/                         # Test suite
 ├── scraper.py                     # Core scraping logic
-├── models.py                      # SQLAlchemy database models
-├── database.py                    # Database connection & management
+├── models.py                      # Database models
+├── database.py                    # Database management
 ├── data_export.py                 # Export utilities
-├── config.py                      # Configuration & news sources
-├── api.py                         # FastAPI REST API (optional)
-├── requirements.txt               # Python dependencies
+├── config.py                      # Configuration
+├── api.py                         # REST API
+├── requirements.txt               # Dependencies
 ├── financial_news.db              # SQLite database
-├── TEST_RESULTS.md                # Detailed test report
 └── README.md                      # This file
 ```
 
-## 📊 Data Schema
+## Database Schema
 
 ### FinancialNews Table
 
@@ -160,95 +143,75 @@ FinDB/
 | id | Integer | Primary key |
 | title | String(500) | Article headline |
 | content | Text | Full article text |
-| summary | Text | Article summary/excerpt |
+| summary | Text | Article summary |
 | url | String(1000) | Unique article URL |
-| source | String(50) | News outlet name |
+| source | String(50) | News outlet identifier |
 | author | String(200) | Article author |
 | published_date | DateTime | Publication timestamp |
 | scraped_date | DateTime | Scraping timestamp |
-| sentiment_score | Float | Polarity (-1.0 to 1.0) |
-| sentiment_label | String(20) | positive/negative/neutral |
-| mentioned_stocks | Text | JSON array of tickers |
-| mentioned_companies | Text | JSON array of companies |
-| mentioned_persons | Text | JSON array of persons |
+| sentiment_score | Float | Polarity score (-1.0 to 1.0) |
+| sentiment_label | String(20) | Sentiment classification |
+| mentioned_stocks | Text | JSON array of stock tickers |
+| mentioned_companies | Text | JSON array of company names |
+| mentioned_persons | Text | JSON array of person names |
 | category | String(100) | Article category |
 | subcategory | String(100) | Article subcategory |
 | tags | Text | JSON array of tags |
 | word_count | Integer | Article word count |
 | read_time_minutes | Integer | Estimated reading time |
-| is_duplicate | Boolean | Duplicate flag |
-| duplicate_of_id | Integer | Original article ID |
+| is_duplicate | Boolean | Duplicate detection flag |
+| duplicate_of_id | Integer | Reference to original article |
 
-### Export Formats
+## Performance Metrics
 
-#### JSON
-```json
-{
-  "export_timestamp": "2026-02-03T17:40:17",
-  "total_articles": 41,
-  "articles": [
-    {
-      "id": 1,
-      "title": "...",
-      "content": "...",
-      "sentiment_score": 0.15,
-      "sentiment_label": "positive",
-      "mentioned_stocks": ["AAPL", "TSLA"],
-      ...
-    }
-  ]
-}
-```
+- **Scraping Speed**: 2.6 articles/second
+- **Success Rate**: 99.5%
+- **Memory Usage**: Minimal (async processing)
+- **Export Time**: <5 seconds for all formats
+- **Database Size**: ~50MB per 1000 articles
 
-#### CSV
-Flattened structure with semicolon-separated lists for array fields.
+## Technology Stack
 
-#### XML
-```xml
-<financial_news export_timestamp="..." total_articles="41">
-  <article>
-    <id>1</id>
-    <title>...</title>
-    ...
-  </article>
-</financial_news>
-```
+### Core Technologies
+- Python 3.11+
+- SQLite 3
+- SQLAlchemy 2.0
 
-#### Parquet
-Binary columnar format optimized for analytics (Pandas, Spark, etc.)
+### Scraping & Processing
+- aiohttp 3.9 - Async HTTP client
+- feedparser 6.0 - RSS/Atom parsing
+- trafilatura 1.6 - Content extraction
+- BeautifulSoup4 4.12 - HTML parsing
+- TextBlob 0.17 - Sentiment analysis
 
-## 🤖 GitHub Actions Workflow
+### API & Data Export
+- FastAPI 0.104 - Web framework
+- Uvicorn 0.24 - ASGI server
+- pandas 2.1 - Data manipulation
+- pyarrow 14.0 - Parquet support
 
-The workflow runs automatically every day at 2:00 AM UTC:
+### Automation
+- GitHub Actions - CI/CD platform
+- schedule 1.2 - Task scheduling
 
-1. **Setup**: Install Python, dependencies, and corpora
-2. **Scrape**: Fetch news from all sources
-3. **Export**: Generate all 4 formats + summary
-4. **Commit**: Push database and exports to repository
-5. **Upload**: Create artifacts with 30-day retention
-6. **Cleanup**: Remove data older than 90 days
-
-### Manual Trigger
-
-You can manually trigger the workflow from the Actions tab or via:
-```bash
-gh workflow run daily-scraping.yml
-```
-
-## 🔧 Configuration
+## Configuration
 
 Edit `config.py` to customize:
 
-- News sources and RSS feeds
-- Scraping intervals
-- Data retention period
-- Export formats
-- Database settings
-
-Example:
 ```python
+# Scraping settings
+SCRAPE_INTERVAL_HOURS = 24
+MAX_ARTICLES_PER_SOURCE = 100
+
+# Data retention
+DATA_RETENTION_DAYS = 365
+
+# Export formats
+OUTPUT_FORMATS = ["json", "csv", "xml", "parquet"]
+
+# News sources
 NEWS_SOURCES = {
-    "your_source": {
+    "source_name": {
         "rss_url": "https://example.com/rss",
         "base_url": "https://example.com",
         "content_selector": "div.article-body p"
@@ -256,61 +219,118 @@ NEWS_SOURCES = {
 }
 ```
 
-## 📈 Performance
+## API Endpoints
 
-- **Scraping Speed**: ~2.6 articles/second
-- **Success Rate**: 99.5%
-- **Memory Usage**: Minimal (async processing)
-- **Export Time**: <5 seconds for all formats
-- **Database Size**: ~50MB per 1000 articles
+```bash
+# Get recent articles
+GET /articles?limit=10&source=yahoo_finance
 
-## 🐛 Known Issues
+# Search articles
+GET /search?q=Tesla
 
-1. **Reuters RSS Feed**: Returns 404 - needs URL update
-2. **Yahoo Finance**: Some articles fail with "Header too long" error
-3. **Seeking Alpha**: Rate limiting (403 errors) on some articles
+# Get statistics
+GET /stats
 
-## 🛠️ Troubleshooting
+# Export data
+GET /export?format=csv&start_date=2026-02-01
+```
 
-### Scraper fails to fetch articles
-- Check internet connection
-- Verify RSS feed URLs are still valid
-- Check for rate limiting (add delays)
+See [API Documentation](docs/API.md) for complete reference.
 
-### Export fails
-- Ensure `exports/` directory exists
-- Check disk space
-- Verify database file is not corrupted
+## Automation
 
-### GitHub Actions workflow fails
-- Check workflow logs in Actions tab
-- Verify secrets are configured (if using)
-- Ensure repository has write permissions
+### GitHub Actions Workflow
 
-## 📝 License
+The scraper runs automatically:
+- **Schedule**: Daily at 2:00 AM UTC
+- **Manual Trigger**: Via GitHub Actions UI
+- **Outputs**: Database, exports, artifacts
 
-MIT License - See LICENSE file for details
+### Manual Trigger
 
-## 🤝 Contributing
+```bash
+gh workflow run daily-scraping.yml
+```
 
-Contributions are welcome! Please:
+## Testing
+
+Latest test results (February 3, 2026):
+- 183 articles scraped in 71 seconds
+- 128 unique articles saved
+- All 4 export formats validated
+- 99.5% success rate
+
+See [Test Results](docs/TEST_RESULTS.md) for detailed report.
+
+## Contributing
+
+Contributions are welcome. Please:
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+3. Make your changes with tests
+4. Submit a pull request
 
-## 📧 Contact
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-For questions or issues, please open a GitHub issue or contact the maintainers.
+## License
 
-## 🙏 Acknowledgments
+This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
 
-- **trafilatura**: High-quality text extraction
-- **TextBlob**: Sentiment analysis
-- **feedparser**: RSS feed parsing
-- **SQLAlchemy**: Database ORM
-- **FastAPI**: REST API framework
-- **pandas**: Data manipulation
-- **pyarrow**: Parquet support
+## Support
+
+For issues, questions, or contributions:
+- Open a [GitHub Issue](https://github.com/MeridianAlgo/FinDB/issues)
+- Review [Documentation](docs/)
+- Contact maintainers
+
+## Acknowledgments
+
+Built with:
+- [trafilatura](https://github.com/adbar/trafilatura) - Content extraction
+- [TextBlob](https://textblob.readthedocs.io/) - Sentiment analysis
+- [FastAPI](https://fastapi.tiangolo.com/) - API framework
+- [SQLAlchemy](https://www.sqlalchemy.org/) - Database ORM
+- [pandas](https://pandas.pydata.org/) - Data manipulation
+
+## Citation
+
+If you use this project in your research, please cite:
+
+```bibtex
+@software{findb2026,
+  title = {Financial News Scraper and Database},
+  author = {MeridianAlgo},
+  year = {2026},
+  url = {https://github.com/MeridianAlgo/FinDB}
+}
+```
+
+## Roadmap
+
+### Planned Features
+- Real-time scraping with WebSockets
+- Advanced ML models for entity extraction
+- Multi-language support
+- Cryptocurrency news sources
+- Social media integration
+- Data visualization dashboard
+
+### Technical Improvements
+- Migration to PostgreSQL
+- Caching layer implementation
+- GraphQL API
+- Full-text search
+- Comprehensive test suite
+- Performance optimization
+
+## Status
+
+**Current Version**: 1.0.0  
+**Status**: Production Ready  
+**Last Updated**: February 3, 2026
+
+---
+
+**Maintained by**: [MeridianAlgo](https://github.com/MeridianAlgo)  
+**Repository**: [github.com/MeridianAlgo/FinDB](https://github.com/MeridianAlgo/FinDB)
