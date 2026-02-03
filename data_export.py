@@ -253,6 +253,8 @@ class DataExporter:
     @staticmethod
     def get_export_stats() -> Dict[str, Any]:
         """Get statistics about exported data"""
+        from sqlalchemy import func
+        
         db = SessionLocal()
         try:
             total_articles = db.query(FinancialNews).count()
@@ -260,7 +262,7 @@ class DataExporter:
             # Articles by source
             source_stats = db.query(
                 FinancialNews.source,
-                db.func.count(FinancialNews.id).label('count')
+                func.count(FinancialNews.id).label('count')
             ).group_by(FinancialNews.source).all()
             
             # Articles by date (last 7 days)
@@ -270,8 +272,8 @@ class DataExporter:
             ).count()
             
             # Date range of articles
-            oldest = db.query(db.func.min(FinancialNews.published_date)).scalar()
-            newest = db.query(db.func.max(FinancialNews.published_date)).scalar()
+            oldest = db.query(func.min(FinancialNews.published_date)).scalar()
+            newest = db.query(func.max(FinancialNews.published_date)).scalar()
             
             return {
                 'total_articles': total_articles,

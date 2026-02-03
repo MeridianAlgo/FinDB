@@ -69,7 +69,7 @@ class ScrapingStatusResponse(BaseModel):
     articles_today: int
 
 class ExportRequest(BaseModel):
-    format: str = Field(..., regex="^(json|csv|xml|parquet)$")
+    format: str = Field(..., pattern="^(json|csv|xml|parquet)$")
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     source: Optional[str] = None
@@ -368,7 +368,7 @@ async def export_data(export_request: ExportRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/export/yesterday")
-async def export_yesterday(format: str = Query("json", regex="^(json|csv|xml|parquet)$")):
+async def export_yesterday(format: str = Query("json", pattern="^(json|csv|xml|parquet)$")):
     """Export yesterday's news"""
     start_time = time.time()
     
