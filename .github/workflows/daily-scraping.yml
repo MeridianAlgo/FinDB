@@ -4,6 +4,7 @@ on:
   schedule:
     # Run every day at 2:00 AM UTC (8:00 PM CST the previous day)
     - cron: '0 2 * * *'
+    - cron: '0 10 * * *'
   workflow_dispatch:
     inputs:
       force_run:
