@@ -1,10 +1,9 @@
-from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, Response
+from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
-import asyncio
 import logging
 import time
 import json
@@ -15,7 +14,7 @@ from config import Config
 from database import get_db, SessionLocal
 from models import FinancialNews, ScrapingLog, APIUsage
 from scraper import main_scraping
-from data_export import DataExporter, export_daily_news, export_weekly_news
+from data_export import DataExporter
 
 # Configure logging
 logging.basicConfig(level=getattr(logging, Config.LOG_LEVEL))
@@ -84,7 +83,7 @@ class SearchRequest(BaseModel):
 
 # Middleware for API usage tracking
 @app.middleware("http")
-async def track_api_usage(request, call_next):
+async def track_api_usage(request: Request, call_next: Any):
     start_time = time.time()
     
     response = await call_next(request)
@@ -414,7 +413,7 @@ async def trigger_scraping(background_tasks: BackgroundTasks):
     
     try:
         # Run scraping in background
-        background_tasks.add_task(asyncio.run, main_scraping())
+        background_tasks.add_task(main_scraping)
         
         log_api_usage("/api/scraping/trigger", "POST", int((time.time() - start_time) * 1000), 200)
         

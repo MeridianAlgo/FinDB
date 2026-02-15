@@ -1,6 +1,6 @@
+from models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.declarative import declarative_base
 from config import Config
 import logging
 from typing import Generator
@@ -21,7 +21,6 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create all tables
-from models import Base
 Base.metadata.create_all(bind=engine)
 
 def get_db() -> Generator[Session, None, None]:

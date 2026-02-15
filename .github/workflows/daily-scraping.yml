@@ -138,7 +138,8 @@ jobs:
           echo "No changes to commit"
         else
           git commit -m "Daily financial news update - $(date +'%Y-%m-%d')"
-          git push --force
+          git pull --rebase origin main
+          git push origin main
         fi
         
     - name: Upload artifacts
@@ -219,5 +220,6 @@ jobs:
           echo "No cleanup changes to commit"
         else
           git commit -m "Data cleanup - $(date +'%Y-%m-%d')"
-          git push --force
+          git pull --rebase origin main
+          git push origin main
         fi
