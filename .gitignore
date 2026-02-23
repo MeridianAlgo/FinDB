@@ -61,6 +61,8 @@ coverage.xml
 logs/
 
 # Database
+financial_news.db
+*.db
 *.db-journal
 *.db-wal
 *.db-shm
@@ -81,6 +83,10 @@ exports/*.csv
 exports/*.xml
 exports/*.parquet
 !exports/.gitkeep
+
+# Caches
+.mypy_cache/
+.ruff_cache/
 
 # Backup files
 *.bak

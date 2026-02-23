@@ -88,13 +88,13 @@ python -m textblob.download_corpora
 
 ```bash
 # Run scraper
-python scraper.py
+python -m findb.scraper
 
 # Export data
-python -c "from data_export import export_daily_news; export_daily_news('json', 'exports')"
+python -c "from findb.data_export import export_daily_news; export_daily_news('json', 'exports')"
 
 # Start API server
-python api.py
+uvicorn findb.api:app --host 0.0.0.0 --port 8000
 ```
 
 ## Documentation
@@ -203,6 +203,13 @@ Edit `config.py` to customize:
 SCRAPE_INTERVAL_HOURS = 24
 MAX_ARTICLES_PER_SOURCE = 100
 
+# HTTP settings
+HTTP_TIMEOUT_SECONDS = 30
+HTTP_MAX_RETRIES = 2
+HTTP_RETRY_BACKOFF_SECONDS = 1.0
+HTTP_MAX_LINE_SIZE = 16384
+HTTP_MAX_FIELD_SIZE = 32768
+
 # Data retention
 DATA_RETENTION_DAYS = 365
 
@@ -212,12 +219,21 @@ OUTPUT_FORMATS = ["json", "csv", "xml", "parquet"]
 # News sources
 NEWS_SOURCES = {
     "source_name": {
+        "enabled": True,
         "rss_url": "https://example.com/rss",
         "base_url": "https://example.com",
         "content_selector": "div.article-body p"
     }
 }
 ```
+
+### Source availability (401/403)
+
+Some sources frequently return `401/403` due to bot protection and/or paywalls (notably Reuters, MarketWatch, and Seeking Alpha). These are **disabled by default** and can be enabled via environment variables:
+
+- `ENABLE_REUTERS=true`
+- `ENABLE_MARKETWATCH=true`
+- `ENABLE_SEEKING_ALPHA=true`
 
 ## API Endpoints
 
@@ -326,7 +342,7 @@ If you use this project in your research, please cite:
 
 ## Status
 
-**Current Version**: 1.0.0  
+**Current Version**: 1.1.0  
 **Status**: Production Ready  
 **Last Updated**: February 3, 2026
 

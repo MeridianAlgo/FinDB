@@ -1,0 +1,26 @@
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+exclude = [
+  "^scripts/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+  "feedparser.*",
+  "trafilatura.*",
+  "textblob.*",
+  "pandas.*",
+  "requests.*",
+]
+ignore_missing_imports = true

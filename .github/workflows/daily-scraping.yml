@@ -51,14 +51,14 @@ jobs:
         DATABASE_URL: sqlite:///financial_news.db
         LOG_LEVEL: INFO
       run: |
-        python scraper.py
+        python -m findb.scraper
         
     - name: Export yesterday's news in all formats
       env:
         DATABASE_URL: sqlite:///financial_news.db
       run: |
         python -c "
-        from data_export import export_daily_news
+        from findb.data_export import export_daily_news
         import os
         
         formats = ['json', 'csv', 'xml', 'parquet']
@@ -76,8 +76,8 @@ jobs:
       run: |
         python -c "
         from datetime import datetime, timedelta
-        from database import SessionLocal
-        from models import FinancialNews
+        from findb.database import SessionLocal
+        from findb.models import FinancialNews
         import json
         
         db = SessionLocal()
@@ -131,7 +131,7 @@ jobs:
         git config --local user.name "GitHub Action"
         
         # Add new files
-        git add financial_news.db exports/ || true
+        git add exports/ || true
         
         # Check if there are changes to commit
         if git diff --staged --quiet; then
@@ -202,7 +202,7 @@ jobs:
         DATA_RETENTION_DAYS: 90
       run: |
         python -c "
-        from database import cleanup_old_data
+        from findb.database import cleanup_old_data
         try:
             cleanup_old_data()
             print('Old data cleanup completed')
