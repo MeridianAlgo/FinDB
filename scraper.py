@@ -38,15 +38,28 @@ class NewsScraper:
         self.session = None
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
         }
     
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession(headers=self.headers)
+        # Increase header limits for Yahoo Finance and other sites with large cookies/headers
+        self.session = aiohttp.ClientSession(
+            headers=self.headers,
+            max_line_size=32768,
+            max_field_size=32768
+        )
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -70,7 +83,11 @@ class NewsScraper:
     async def fetch_article_content(self, url: str, source_config: Dict) -> Optional[str]:
         """Fetch full article content from URL"""
         try:
-            async with self.session.get(url, timeout=30) as response:
+            # Add referer to help with 401/blocking
+            headers = self.headers.copy()
+            headers['Referer'] = source_config.get('base_url', 'https://google.com')
+            
+            async with self.session.get(url, timeout=30, headers=headers) as response:
                 if response.status == 200:
                     html = await response.text()
                     
@@ -343,46 +360,60 @@ class NewsProcessor:
         """Save articles to database"""
         db = SessionLocal()
         saved_count = 0
+        added_urls = set()
         
         try:
+            # Get existing URLs from DB to avoid redundant checks
+            urls_in_batch = [a.url for a in articles]
+            existing_urls = set(
+                url[0] for url in db.query(FinancialNews.url).filter(
+                    FinancialNews.url.in_(urls_in_batch)
+                ).all()
+            )
+            
             for article in articles:
-                # Check if article already exists
-                existing = db.query(FinancialNews).filter(
-                    FinancialNews.url == article.url
-                ).first()
-                
-                if existing:
+                # Check for duplicates in current batch and existing DB
+                if article.url in added_urls or article.url in existing_urls:
                     continue
                 
-                # Extract financial entities
-                entities = NewsScraper().extract_financial_entities(article.content + ' ' + article.title)
-                
-                # Calculate sentiment
-                blob = TextBlob(article.content)
-                sentiment_score = blob.sentiment.polarity
-                sentiment_label = 'positive' if sentiment_score > 0.1 else 'negative' if sentiment_score < -0.1 else 'neutral'
-                
-                # Create database record
-                db_article = FinancialNews(
-                    title=article.title,
-                    content=article.content,
-                    summary=article.summary,
-                    url=article.url,
-                    source=article.source,
-                    author=article.author,
-                    published_date=article.published_date or datetime.now(),
-                    mentioned_stocks=json.dumps(entities['stocks']),
-                    mentioned_companies=json.dumps(entities['companies']),
-                    mentioned_persons=json.dumps(entities['persons']),
-                    word_count=len(article.content.split()),
-                    read_time_minutes=max(1, len(article.content.split()) // 200),
-                    sentiment_score=sentiment_score,
-                    sentiment_label=sentiment_label,
-                    tags=json.dumps(article.tags)
-                )
-                
-                db.add(db_article)
-                saved_count += 1
+                try:
+                    # Extract financial entities
+                    entities = NewsScraper().extract_financial_entities(article.content + ' ' + article.title)
+                    
+                    # Calculate sentiment
+                    blob = TextBlob(article.content)
+                    sentiment_score = blob.sentiment.polarity
+                    sentiment_label = 'positive' if sentiment_score > 0.1 else 'negative' if sentiment_score < -0.1 else 'neutral'
+                    
+                    # Create database record
+                    db_article = FinancialNews(
+                        title=article.title,
+                        content=article.content,
+                        summary=article.summary,
+                        url=article.url,
+                        source=article.source,
+                        author=article.author,
+                        published_date=article.published_date or datetime.now(),
+                        mentioned_stocks=json.dumps(entities['stocks']),
+                        mentioned_companies=json.dumps(entities['companies']),
+                        mentioned_persons=json.dumps(entities['persons']),
+                        word_count=len(article.content.split()),
+                        read_time_minutes=max(1, len(article.content.split()) // 200),
+                        sentiment_score=sentiment_score,
+                        sentiment_label=sentiment_label,
+                        tags=json.dumps(article.tags)
+                    )
+                    
+                    db.add(db_article)
+                    added_urls.add(article.url)
+                    saved_count += 1
+                    
+                    # Periodic commit to avoid massive transaction if needed,
+                    # but for typical batches, one commit at end is fine.
+                    # Just ensure we don't hit UNIQUE constraint if another process inserts.
+                except Exception as e:
+                    logger.error(f"Error processing individual article {article.url}: {e}")
+                    continue
             
             db.commit()
             logger.info(f"Saved {saved_count} new articles to database")

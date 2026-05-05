@@ -16,12 +16,12 @@ class Config:
     
     # News sources configuration
     NEWS_SOURCES = {
-        "reuters": {
-            "rss_url": "https://www.reuters.com/rssFeed/worldNews",
-            "base_url": "https://www.reuters.com",
-            "selector": "div.story-content",
+        "google_finance": {
+            "rss_url": "https://news.google.com/rss/search?q=finance+OR+stock+OR+market&hl=en-US&gl=US&ceid=US:en",
+            "base_url": "https://news.google.com",
+            "selector": "article",
             "title_selector": "h1",
-            "content_selector": "div.StandardArticleBody__p",
+            "content_selector": "div.article-body p, div.caas-body p, article p",
             "date_selector": "time"
         },
         "yahoo_finance": {
