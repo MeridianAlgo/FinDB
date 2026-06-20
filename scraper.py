@@ -109,7 +109,8 @@ class NewsScraper:
                         content = '\n'.join([p.get_text(strip=True) for p in paragraphs])
                         return content
                 else:
-                    logger.error(f"Failed to fetch article {url}: HTTP {response.status}")
+                    if response.status not in (401, 403, 404):
+                        logger.error(f"Failed to fetch article {url}: HTTP {response.status}")
                     return None
         except Exception as e:
             logger.error(f"Error fetching article content {url}: {e}")
