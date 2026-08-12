@@ -45,14 +45,24 @@ jobs:
         
     - name: Create exports directory
       run: mkdir -p exports
-      
+
+    # The database is stored in a Hugging Face dataset rather than in git: it
+    # grows past GitHub's hard 100 MB per-file limit, at which point pushes are
+    # rejected. Pull it first so duplicate detection sees previously seen URLs.
+    - name: Pull database from Hugging Face
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO || 'MeridianAlgo/FinDB' }}
+      run: |
+        python hf_storage.py pull
+
     - name: Run financial news scraper
       env:
         DATABASE_URL: sqlite:///financial_news.db
         LOG_LEVEL: INFO
       run: |
         python scraper.py
-        
+
     - name: Export yesterday's news in all formats
       env:
         DATABASE_URL: sqlite:///financial_news.db
@@ -139,27 +149,32 @@ jobs:
             print(f'Cleanup error: {e}')
         "
         
-    - name: Commit and push changes
+    # Persist the run. This must not be skipped or soft-failed: losing it
+    # loses the day's articles entirely, since nothing else stores them.
+    - name: Push database and exports to Hugging Face
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO || 'MeridianAlgo/FinDB' }}
+      run: |
+        python hf_storage.py push
+
+    # Only the small text exports are committed; the database itself lives in
+    # the Hugging Face dataset (see hf_storage.py).
+    - name: Commit exports
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
-        # Add all changed files including DB and exports
-        git add financial_news.db exports/ || true
-        
-        # Check if there are changes to commit
+
+        git add exports/ || true
+
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
           git commit -m "Daily financial news update and cleanup - $(date +'%Y-%m-%d')"
-          # Use pull --rebase but handle potential binary conflicts by preferring our version
-          # since we just generated the most up-to-date DB including cleanup.
-          # Note: If someone else pushed news, this might still be tricky, but combining jobs
-          # significantly reduces the window for race conditions.
           git pull --rebase -X ours origin main || git pull --rebase origin main
           git push origin main
         fi
-        
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       if: always()

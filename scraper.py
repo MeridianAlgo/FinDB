@@ -54,11 +54,15 @@ class NewsScraper:
         }
     
     async def __aenter__(self):
-        # Increase header limits for Yahoo Finance and other sites with large cookies/headers
+        # Increase header limits for Yahoo Finance and other sites with large
+        # cookies/headers. Yahoo's Link header (CDN preload hints) varies in
+        # size per response and intermittently exceeded a 32 KB ceiling, which
+        # failed the fetch and cost us the article; the ceiling is only a
+        # parser bound, so keep it well clear of observed sizes.
         self.session = aiohttp.ClientSession(
             headers=self.headers,
-            max_line_size=32768,
-            max_field_size=32768
+            max_line_size=262144,
+            max_field_size=262144
         )
         return self
     

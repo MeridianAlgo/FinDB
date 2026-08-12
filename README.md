@@ -34,6 +34,38 @@ Every source is validated for full-text extractability before being added.
 Aggregator feeds that only yield redirect stubs (such as Google News RSS) are
 deliberately excluded — see the note in `config.py`.
 
+### Dataset Storage
+
+The article database is stored in a Hugging Face dataset rather than in git.
+At roughly 5.6 KB per article with 90-day retention it grows past GitHub's hard
+100 MB per-file limit, at which point pushes are rejected outright. Hugging Face
+also makes the corpus directly usable by anyone training on it.
+
+One-time setup:
+
+1. Create a write token at <https://huggingface.co/settings/tokens>.
+2. Add it to the repository as a secret named `HF_TOKEN`
+   (*Settings → Secrets and variables → Actions*).
+3. Seed the dataset and stop tracking the database in git:
+
+   ```bash
+   export HF_TOKEN=hf_...
+   python scripts/migrate_db_to_hf.py --untrack
+   ```
+
+   The script uploads the database, downloads it back, and compares row counts.
+   It refuses to untrack anything unless that check passes, so a failed upload
+   cannot leave the next scheduled run with an empty database.
+
+To work with the data locally:
+
+```bash
+python hf_storage.py pull      # fetch the current database
+```
+
+Optionally set `HF_DATASET_REPO` (repository variable) to point at a different
+dataset; it defaults to `MeridianAlgo/FinDB`.
+
 ### Intelligent Content Extraction
 - High-quality text extraction using trafilatura
 - Automatic removal of advertisements and navigation elements

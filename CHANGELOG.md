@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-12
+
+### Security
+- Upgraded `aiohttp` 3.13.4 to 3.14.3, clearing 14 Dependabot advisories
+  (1 high, 9 moderate, 4 low), including CVE-2026-69244.
+- Removed the `asyncio==3.4.3` requirement. `asyncio` has been part of the
+  standard library since Python 3.4; the pin installed an obsolete backport
+  into site-packages where it can shadow the stdlib module.
+
+### Fixed
+- Raised the HTTP header size ceiling from 32 KB to 256 KB. Yahoo Finance's
+  `Link` header varies in size per response and intermittently exceeded the
+  old limit, failing the fetch and losing the article.
+
+### Changed
+- The database is no longer tracked in git. At ~5.6 KB/article with 90-day
+  retention it was on course to pass GitHub's hard 100 MB per-file limit,
+  beyond which pushes are rejected. It now lives in a Hugging Face dataset,
+  which also makes the corpus directly consumable. See `hf_storage.py` and
+  the setup steps in README.md.
+
+### Added
+- `hf_storage.py` — pull/push the database and exports to Hugging Face.
+- `scripts/migrate_db_to_hf.py` — one-time cutover that verifies the upload
+  by downloading it back and comparing row counts before untracking the
+  database, so a failed upload cannot leave the next run with empty data.
+
 ## [1.1.0] - 2026-08-12
 
 ### Fixed
