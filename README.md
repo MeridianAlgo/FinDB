@@ -16,20 +16,32 @@ The system executes daily via GitHub Actions, aggregating news into a SQLite dat
 ## Key Features
 
 ### Multi-Source Aggregation
-Collects news from 7 major financial sources:
+Collects news from 14 financial news feeds:
 - Yahoo Finance
 - MarketWatch
 - Seeking Alpha
-- CNBC
+- CNBC (top news, finance, and economy sections)
 - BBC Business
 - Guardian Business
-- Reuters
+- Business Insider Markets
+- MarketBeat
+- Fortune
+- Forbes Business
+- CBC Business
+- Nasdaq Markets
+
+Every source is validated for full-text extractability before being added.
+Aggregator feeds that only yield redirect stubs (such as Google News RSS) are
+deliberately excluded — see the note in `config.py`.
 
 ### Intelligent Content Extraction
 - High-quality text extraction using trafilatura
 - Automatic removal of advertisements and navigation elements
 - Fallback parsing with BeautifulSoup for complex pages
 - Metadata extraction (author, publish date, tags)
+- Content quality gate: articles that do not yield real prose are dropped
+  rather than stored, so sentiment and entity analytics are never computed
+  over URLs or markup residue (`MIN_CONTENT_CHARS`, `is_usable_content`)
 
 ### Advanced Analytics
 - Sentiment analysis with polarity scoring (-1.0 to 1.0)

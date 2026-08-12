@@ -13,17 +13,21 @@ class Config:
     # Scraping settings
     SCRAPE_INTERVAL_HOURS = int(os.getenv("SCRAPE_INTERVAL_HOURS", "24"))
     MAX_ARTICLES_PER_SOURCE = int(os.getenv("MAX_ARTICLES_PER_SOURCE", "100"))
-    
+
+    # Content quality gate. Articles that fail these checks are dropped rather
+    # than stored, so that sentiment/entity analytics are never computed over
+    # non-prose (see NewsScraper.is_usable_content).
+    MIN_CONTENT_CHARS = int(os.getenv("MIN_CONTENT_CHARS", "150"))
+
     # News sources configuration
+    #
+    # NOTE: "google_finance" (a news.google.com RSS search) was removed. Google
+    # News RSS links are opaque redirect stubs (/rss/articles/CBMi...) that
+    # resolve to the publisher only via a JS-gated batchexecute RPC; from a
+    # plain HTTP client every article page is an empty JS shell, so extraction
+    # always failed and fell back to storing the raw RSS markup as "content".
+    # The publishers it aggregated are covered directly below instead.
     NEWS_SOURCES = {
-        "google_finance": {
-            "rss_url": "https://news.google.com/rss/search?q=finance+OR+stock+OR+market&hl=en-US&gl=US&ceid=US:en",
-            "base_url": "https://news.google.com",
-            "selector": "article",
-            "title_selector": "h1",
-            "content_selector": "div.article-body p, div.caas-body p, article p",
-            "date_selector": "time"
-        },
         "yahoo_finance": {
             "rss_url": "https://finance.yahoo.com/news/rssindex",
             "base_url": "https://finance.yahoo.com",
@@ -70,6 +74,78 @@ class Config:
             "selector": "article",
             "title_selector": "h1",
             "content_selector": "div.article-body-commercial-selector p",
+            "date_selector": "time"
+        },
+
+        # Direct feeds covering the publishers previously reached (unusably)
+        # through google_finance. Each was validated for RSS availability and
+        # full-text extraction before being added.
+        "cnbc_finance": {
+            "rss_url": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
+            "base_url": "https://www.cnbc.com",
+            "selector": "div.group",
+            "title_selector": "h1",
+            "content_selector": "div.group p",
+            "date_selector": "time"
+        },
+        "cnbc_economy": {
+            "rss_url": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
+            "base_url": "https://www.cnbc.com",
+            "selector": "div.group",
+            "title_selector": "h1",
+            "content_selector": "div.group p",
+            "date_selector": "time"
+        },
+        "business_insider": {
+            "rss_url": "https://markets.businessinsider.com/rss/news",
+            "base_url": "https://markets.businessinsider.com",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div.news-content p, article p",
+            "date_selector": "time"
+        },
+        # NOTE: benzinga.com was evaluated and rejected. Its feed serves rich
+        # articles to requests but returns HTTP 403 to aiohttp regardless of
+        # headers (Cloudflare fingerprints the TLS/HTTP2 stack), so it would
+        # fail on every run.
+        "marketbeat": {
+            "rss_url": "https://www.marketbeat.com/feed/",
+            "base_url": "https://www.marketbeat.com",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div.article-body p, article p",
+            "date_selector": "time"
+        },
+        "fortune": {
+            "rss_url": "https://fortune.com/feed/fortune-feeds/?id=3230629",
+            "base_url": "https://fortune.com",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div.articleBody p, article p",
+            "date_selector": "time"
+        },
+        "forbes_business": {
+            "rss_url": "https://www.forbes.com/business/feed/",
+            "base_url": "https://www.forbes.com",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div.article-body p, article p",
+            "date_selector": "time"
+        },
+        "cbc_business": {
+            "rss_url": "https://www.cbc.ca/webfeed/rss/rss-business",
+            "base_url": "https://www.cbc.ca",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div.story p, article p",
+            "date_selector": "time"
+        },
+        "nasdaq": {
+            "rss_url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets",
+            "base_url": "https://www.nasdaq.com",
+            "selector": "article",
+            "title_selector": "h1",
+            "content_selector": "div.body__content p, article p",
             "date_selector": "time"
         }
     }

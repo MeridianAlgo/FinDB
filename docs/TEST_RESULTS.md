@@ -1,5 +1,9 @@
 # Test Results - Financial News Scraper
 
+> **Superseded.** This is a point-in-time report against the 1.0.0 source list
+> and is kept for history. The source set and content-quality handling changed
+> in 1.1.0; see CHANGELOG.md for current behaviour.
+
 ## Test Date: February 3, 2026
 
 ### Scraper Test Results

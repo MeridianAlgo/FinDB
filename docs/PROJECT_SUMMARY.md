@@ -156,9 +156,16 @@ See [TEST_RESULTS.md](TEST_RESULTS.md) for detailed report.
 
 ### Known Issues
 
-1. **Reuters RSS Feed**: Returns 404 error (URL needs update)
-2. **Yahoo Finance**: Header length errors on some articles
-3. **Seeking Alpha**: Rate limiting (403 errors)
+1. **Yahoo Finance**: Header length errors on some articles
+2. **Seeking Alpha**: Rate limiting (403 errors)
+3. **MarketWatch**: Some articles yield only the RSS summary, which can fall
+   below the `MIN_CONTENT_CHARS` quality gate and be dropped
+4. **Paywalled publishers** (WSJ, Barron's, FT, Bloomberg) are not collected;
+   they do not yield extractable full text
+
+Resolved in 1.1.0: the Reuters/Google News aggregator feed, which returned
+either 404 or unresolvable redirect stubs, was replaced with direct publisher
+feeds. See CHANGELOG.md.
 
 ### Future Enhancements
 

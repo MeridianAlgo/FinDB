@@ -198,19 +198,70 @@ class NewsScraper:
         
         return None
     
+    def strip_html(self, text: str) -> str:
+        """Reduce an HTML fragment to its visible text.
+
+        RSS <summary> values are HTML, not plain text. Passing them straight to
+        clean_text() used to mangle markup into pseudo-words: clean_text strips
+        '/', '"' and '<' as "special characters", so an anchor tag collapsed
+        into 'a hrefhttps:example.comfoo targetblankHeadlinea' and was stored as
+        article content. Strip the tags first so only real prose survives.
+        """
+        if not text:
+            return ""
+        if '<' not in text:
+            return text
+        return BeautifulSoup(text, 'html.parser').get_text(separator=' ')
+
     def clean_text(self, text: str) -> str:
         """Clean and normalize text"""
         if not text:
             return ""
-        
+
+        # Drop any markup before character filtering (see strip_html).
+        text = self.strip_html(text)
+
         # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text)
-        
+
         # Remove special characters but keep basic punctuation
         text = re.sub(r'[^\w\s\.\,\!\?\;\:\-\(\)]', '', text)
-        
+
         return text.strip()
-    
+
+    # Content that is really a bare link, a redirect stub, or leftover markup
+    # rather than article prose.
+    _JUNK_CONTENT_PATTERNS = (
+        re.compile(r'^\s*a\s+href', re.I),          # mangled anchor tag
+        re.compile(r'news\.google\.com', re.I),      # Google News redirect stub
+        re.compile(r'^\s*<', re.I),                  # raw markup
+        re.compile(r'^\s*https?[:\s]', re.I),        # content is just a URL
+    )
+
+    def is_usable_content(self, content: str) -> bool:
+        """Whether extracted content is real prose worth storing.
+
+        Guards the database against rows whose 'content' is a URL or markup
+        residue. Such rows are worse than absent: sentiment scores and entity
+        extractions get computed over them and silently poison analytics.
+        """
+        if not content or len(content.strip()) < Config.MIN_CONTENT_CHARS:
+            return False
+
+        for pattern in self._JUNK_CONTENT_PATTERNS:
+            if pattern.search(content[:200]):
+                return False
+
+        # Prose has spaces between words; a URL-ish blob does not.
+        words = content.split()
+        if len(words) < 20:
+            return False
+        if max((len(w) for w in words), default=0) > 100:
+            return False
+
+        return True
+
+
     def extract_financial_entities(self, text: str) -> Dict:
         """Extract financial entities from text"""
         # Stock ticker patterns (e.g., $AAPL, AAPL)
@@ -235,7 +286,8 @@ class NewsScraper:
         """Scrape news from a single source"""
         articles = []
         errors = []
-        
+        skipped = 0
+
         try:
             # Fetch RSS feed
             feed = await self.fetch_rss_feed(source_config['rss_url'])
@@ -265,7 +317,19 @@ class NewsScraper:
                     content = await self.fetch_article_content(url, source_config)
                     if not content:
                         content = summary  # Fallback to summary
-                    
+
+                    # Drop rather than store unusable content. Previously an
+                    # article whose page could not be extracted was saved with
+                    # the raw RSS summary markup as its content, and downstream
+                    # sentiment/entity analysis ran over that string.
+                    if not self.is_usable_content(content):
+                        logger.debug(
+                            f"Skipping {url}: no usable content extracted "
+                            f"({len(content or '')} chars)"
+                        )
+                        skipped += 1
+                        continue
+
                     # Extract tags
                     tags = []
                     if hasattr(entry, 'tags'):
@@ -297,7 +361,12 @@ class NewsScraper:
                     error_msg = f"Error processing article {getattr(entry, 'link', 'unknown')}: {e}"
                     logger.error(error_msg)
                     errors.append(error_msg)
-            
+
+            if skipped:
+                logger.info(
+                    f"{source_name}: skipped {skipped} article(s) with no usable content"
+                )
+
             return articles, 0 if not errors else len(errors)
             
         except Exception as e:
@@ -362,7 +431,8 @@ class NewsProcessor:
         db = SessionLocal()
         saved_count = 0
         added_urls = set()
-        
+        scraper = NewsScraper()
+
         try:
             # Get existing URLs from DB to avoid redundant checks
             urls_in_batch = [a.url for a in articles]
@@ -376,11 +446,19 @@ class NewsProcessor:
                 # Check for duplicates in current batch and existing DB
                 if article.url in added_urls or article.url in existing_urls:
                     continue
-                
+
+                # Final guard: never persist a row whose content would poison
+                # sentiment/entity analytics.
+                if not scraper.is_usable_content(article.content):
+                    logger.warning(
+                        f"Refusing to save {article.url}: content failed quality check"
+                    )
+                    continue
+
                 try:
                     # Extract financial entities
-                    entities = NewsScraper().extract_financial_entities(article.content + ' ' + article.title)
-                    
+                    entities = scraper.extract_financial_entities(article.content + ' ' + article.title)
+
                     # Calculate sentiment
                     blob = TextBlob(article.content)
                     sentiment_score = blob.sentiment.polarity

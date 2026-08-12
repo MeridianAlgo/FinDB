@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-12
+
+### Fixed
+- **Corrupted content from `google_finance`.** Google News RSS links are opaque
+  redirect stubs whose article pages are empty JS shells, so extraction always
+  failed and the scraper stored the raw RSS markup as article content. Every
+  such row also carried a sentiment score and entity lists computed over that
+  string, poisoning analytics for roughly half the database.
+- RSS `<summary>` values are now stripped of HTML before text cleaning. Markup
+  previously collapsed into pseudo-words such as `a hrefhttps:...targetblank`.
+- Articles with empty content are no longer saved (`nullable=False` does not
+  reject an empty string).
+- `NewsProcessor.save_articles` no longer constructs a `NewsScraper` per article.
+
+### Added
+- Content quality gate (`NewsScraper.is_usable_content`, `MIN_CONTENT_CHARS`).
+  Articles that do not yield real prose are dropped rather than stored, so
+  sentiment and entity analytics are never computed over URLs or markup.
+- `scripts/cleanup_corrupt_rows.py` to purge affected rows (dry run by default,
+  takes a timestamped backup before deleting).
+- Direct feeds replacing the aggregator: CNBC finance and economy sections,
+  Business Insider Markets, MarketBeat, Fortune, Forbes Business, CBC Business,
+  and Nasdaq Markets. Each was validated for feed availability and full-text
+  extraction before being added.
+
+### Removed
+- `google_finance` source. Resolving its redirects server-side is not possible:
+  the article ID decodes to an opaque token rather than a URL, and Google's
+  `batchexecute` resolution RPC rejects non-browser clients.
+- 12,063 unusable rows (11,387 redirect stubs plus 676 with empty content).
+
 ## [1.0.0] - 2026-02-03
 
 ### Added
