@@ -94,3 +94,6 @@ exports/*.parquet
 # Database lives in the Hugging Face dataset, not in git
 # (it exceeds GitHub's 100 MB per-file limit). See hf_storage.py
 financial_news.db
+
+# HF pull-state sidecar (written by hf_storage.py)
+.hf_pull_state
