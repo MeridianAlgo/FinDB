@@ -206,6 +206,12 @@ jobs:
           - Daily summary statistics
         draft: false
         prerelease: true
+        # Listed by extension rather than exports/*: the glob would include the
+        # 0-byte exports/.gitkeep placeholder, and GitHub rejects empty release
+        # assets ("size must be greater than or equal to 1").
         files: |
-          exports/*
+          exports/*.json
+          exports/*.csv
+          exports/*.xml
+          exports/*.parquet
           financial_news.db
