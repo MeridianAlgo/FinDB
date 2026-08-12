@@ -90,3 +90,7 @@ exports/*.parquet
 # Distribution
 *.tar.gz
 *.zip
+
+# Database lives in the Hugging Face dataset, not in git
+# (it exceeds GitHub's 100 MB per-file limit). See hf_storage.py
+financial_news.db
