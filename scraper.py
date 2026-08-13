@@ -40,7 +40,11 @@ class NewsScraper:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
+            # No 'br': aiohttp 3.14 cannot stream-decode brotli with the Brotli
+            # package installed (it calls Decompressor.process(data, max_length),
+            # which only takes one argument), so advertising br made every
+            # brotli-serving site fail outright. gzip is served by all of them.
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
             'Cache-Control': 'max-age=0',
